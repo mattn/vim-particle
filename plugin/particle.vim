@@ -16,6 +16,7 @@ let s:ctb = [
 \ '000000', 'aa0000', '00aa00', '0000aa', 'aa5500', 'aa00aa', '00aaaa', 'aaaaaa',
 \ '555555', 'ff5555', '55ff55', 'ffff55', '5555ff', 'ff55ff', '55ffff', 'ffffff'
 \]
+let [s:oldx, s:oldy] = [0, 0]
 function! s:particle()
   let [x, y] = [getwinposx(), getwinposy()]
   let x += s:rand() % 10 - 5
@@ -30,7 +31,12 @@ function! s:particle()
     let c = 'ffffff'
   endif
 
-  silent exe "!start" printf("%s %d,%d,%d,%d,%d %s", s:exe, v:windowid, screencol(), screenrow(), &columns, &lines, c)
+  let [x, y] = [screencol(), screenrow()]
+  if x == 10000 || y == 10000
+    let [x, y] = [s:oldx, s:oldy]
+  endif
+  silent exe "!start" printf("%s %d,%d,%d,%d,%d %s", s:exe, v:windowid, x, y, &columns, &lines, c)
+  let [s:oldx, s:oldy] = [x, y]
 endfunction
 
 function! s:install(flag)
