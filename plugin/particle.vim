@@ -20,6 +20,8 @@ function! s:particle()
   let c = synIDattr(synIDtrans(synID(line("."), col(".")-1, 1)), "fg")
   if c =~ '^#'
     silent exe "!start" printf("%s %d %s", s:exe, v:windowid, c[1:])
+  else
+    silent exe "!start" printf("%s %d ffffff", s:exe, v:windowid)
   endif
 endfunction
 
