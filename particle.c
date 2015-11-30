@@ -77,6 +77,7 @@ WinMain(HINSTANCE hinst, HINSTANCE hinstPrev, LPSTR lpszCmdLine, int nCmdShow) {
   argv = CommandLineToArgvW(GetCommandLineW(), &argc);
 
   hwnd = argc >= 1 ? (HWND) _wtoi64(argv[1]) : NULL;
+  if (hwnd == NULL) hwnd = GetForegroundWindow();
   if (hwnd != NULL) {
     GetWindowRect(hwnd, &rc);
     pt.x = (rc.left + rc.right) / 2 + rand() % 200 - 100;
