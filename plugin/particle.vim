@@ -12,6 +12,10 @@ endfunction
 
 call s:srand(localtime())
 
+let s:ctb = [
+\ '000000', 'aa0000', '00aa00', '0000aa', 'aa5500', 'aa00aa', '00aaaa', 'aaaaaa',
+\ '555555', 'ff5555', '55ff55', 'ffff55', '5555ff', 'ff55ff', '55ffff', 'ffffff'
+\]
 function! s:particle()
   let [x, y] = [getwinposx(), getwinposy()]
   let x += s:rand() % 10 - 5
@@ -20,6 +24,8 @@ function! s:particle()
   let c = synIDattr(synIDtrans(synID(line("."), col(".")-1, 1)), "fg")
   if c =~ '^#'
     silent exe "!start" printf("%s %d %s", s:exe, v:windowid, c[1:])
+  elseif c =~ '^[0-9]\+$'
+    silent exe "!start" printf("%s %d %s", s:exe, v:windowid, s:ctb[c])
   else
     silent exe "!start" printf("%s %d ffffff", s:exe, v:windowid)
   endif
