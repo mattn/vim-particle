@@ -11,7 +11,7 @@ typedef struct {
   int r;
 } particle;
 
-static particle p[5] = {0};
+static particle p[4] = {0};
 static HBRUSH hb = NULL;
 
 LRESULT CALLBACK
@@ -42,9 +42,9 @@ UpdateProc(HWND hwnd, UINT uMsg, UINT_PTR idEvent, DWORD dwTime) {
   for (i = 0; i < sizeof(p)/sizeof(p[0]); i++) {
     p[i].x += p[i].dx;
     p[i].y += p[i].dy;
-    p[i].dy++;
-    p[i].r++;
-    if (p[i].r == 20) {
+    p[i].dy += 2;
+    p[i].r += 2;
+    if (p[i].r >= 30) {
       DestroyWindow(p[i].hwnd);
       break;
     }
@@ -69,23 +69,39 @@ WinMain(HINSTANCE hinst, HINSTANCE hinstPrev, LPSTR lpszCmdLine, int nCmdShow) {
   int r = 0xff, g = 0xff, b = 0xff;
   GUITHREADINFO ti = {0};
   RECT rc = {0};
-  POINT pt;
+  POINT pt = {500, 500};
   HWND hwnd;
+  int w = 0, h = 0;
+  wchar_t *pos;
 
   srand((unsigned)time(NULL));
 
   argv = CommandLineToArgvW(GetCommandLineW(), &argc);
 
-  hwnd = argc >= 1 ? (HWND) _wtoi64(argv[1]) : NULL;
-  if (hwnd == NULL) hwnd = GetForegroundWindow();
-  if (hwnd != NULL) {
-    GetWindowRect(hwnd, &rc);
-    pt.x = (rc.left + rc.right) / 2 + rand() % 200 - 100;
-    pt.y = (rc.top + rc.bottom) / 2 + rand() % 200 - 100;
-  } else {
-    GetCursorPos(&pt);
-  }
   if (argc >= 2) {
+    pos = wcschr(argv[1], ',');
+    if (pos) *pos++ = 0;
+
+    hwnd = (HWND) _wtoi64(argv[1]);
+    if (hwnd == NULL) hwnd = GetForegroundWindow();
+
+    if (swscanf(pos, L"%d,%d,%d,%d", &pt.x, &pt.y, &w, &h) == 4) {
+      GetWindowRect(hwnd, &rc);
+      pt.x = (rc.right - rc.left) / w * pt.x;
+      pt.y = (rc.bottom - rc.top) / h * pt.y;
+      ClientToScreen(hwnd, &pt);
+    } else {
+      if (hwnd != NULL) {
+        GetWindowRect(hwnd, &rc);
+        pt.x = (rc.left + rc.right) / 2 + rand() % 200 - 100;
+        pt.y = (rc.top + rc.bottom) / 2 + rand() % 200 - 100;
+      } else {
+        GetCursorPos(&pt);
+      }
+    }
+  }
+
+  if (argc >= 3) {
     swscanf(argv[2], L"%02x%02x%02x", &r, &g, &b);
   } else {
     r = rand() % 255;

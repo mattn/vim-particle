@@ -23,12 +23,14 @@ function! s:particle()
   exe 'winpos' x y
   let c = synIDattr(synIDtrans(synID(line("."), col(".")-1, 1)), "fg")
   if c =~ '^#'
-    silent exe "!start" printf("%s %d %s", s:exe, v:windowid, c[1:])
+    let c = c[1:]
   elseif c =~ '^[0-9]\+$'
-    silent exe "!start" printf("%s %d %s", s:exe, v:windowid, s:ctb[c])
+    let c = s:ctb[c]
   else
-    silent exe "!start" printf("%s %d ffffff", s:exe, v:windowid)
+    let c = 'ffffff'
   endif
+
+  silent exe "!start" printf("%s %d,%d,%d,%d,%d %s", s:exe, v:windowid, screencol(), screenrow(), &columns, &lines, c)
 endfunction
 
 function! s:install(flag)
