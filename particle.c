@@ -66,20 +66,31 @@ WinMain(HINSTANCE hinst, HINSTANCE hinstPrev, LPSTR lpszCmdLine, int nCmdShow) {
   int exit_code = 1;
   int argc;
   LPWSTR *argv;
-  int r, g, b;
+  int r = 0xff, g = 0xff, b = 0xff;
   GUITHREADINFO ti = {0};
   RECT rc = {0};
   POINT pt;
   HWND hwnd;
 
-  argv = CommandLineToArgvW(GetCommandLineW(), &argc);
-  if (argc != 3) goto leave;
+  srand((unsigned)time(NULL));
 
-  hwnd = (HWND) _wtoi64(argv[1]);
-  GetWindowRect(hwnd, &rc);
-  pt.x = (rc.left + rc.right) / 2 + rand() % 200 - 100;
-  pt.y = (rc.top + rc.bottom) / 2 + rand() % 200 - 100;
-  swscanf(argv[2], L"%02x%02x%02x", &r, &g, &b);
+  argv = CommandLineToArgvW(GetCommandLineW(), &argc);
+
+  hwnd = argc >= 1 ? (HWND) _wtoi64(argv[1]) : NULL;
+  if (hwnd != NULL) {
+    GetWindowRect(hwnd, &rc);
+    pt.x = (rc.left + rc.right) / 2 + rand() % 200 - 100;
+    pt.y = (rc.top + rc.bottom) / 2 + rand() % 200 - 100;
+  } else {
+    GetCursorPos(&pt);
+  }
+  if (argc >= 2) {
+    swscanf(argv[2], L"%02x%02x%02x", &r, &g, &b);
+  } else {
+    r = rand() % 255;
+    g = rand() % 255;
+    b = rand() % 255;
+  }
 
   wc.cbSize        = sizeof(WNDCLASSEX);
   wc.style         = 0;
@@ -94,8 +105,6 @@ WinMain(HINSTANCE hinst, HINSTANCE hinstPrev, LPSTR lpszCmdLine, int nCmdShow) {
   wc.lpszClassName = app;
   wc.hIconSm       = (HICON)LoadImage(NULL, IDI_APPLICATION, IMAGE_ICON, 0, 0, LR_SHARED);
   if (!RegisterClassEx(&wc)) goto leave;
-
-  srand((unsigned)time(NULL));
 
   hb = CreateSolidBrush(RGB(r, g, b));
   for (i = 0; i < sizeof(p)/sizeof(p[0]); i++) {
