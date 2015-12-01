@@ -8,7 +8,6 @@ typedef struct {
   int y;
   int dx;
   int dy;
-  int r;
 } particle;
 
 static particle p[4] = {0};
@@ -43,17 +42,12 @@ UpdateProc(HWND hwnd, UINT uMsg, UINT_PTR idEvent, DWORD dwTime) {
     p[i].x += p[i].dx;
     p[i].y += p[i].dy;
     p[i].dy += 2;
-    p[i].r += 2;
-    if (p[i].r >= 30) {
+    if (p[i].dy >= 30) {
       DestroyWindow(p[i].hwnd);
       break;
     }
-    r = 20 - abs(p[i].r);
-    HRGN hrgn = CreateEllipticRgn(0, 0, r, r);
-    if (hrgn == NULL)
-      continue;
-    SetWindowRgn(p[i].hwnd, hrgn, TRUE);
-    MoveWindow(p[i].hwnd, p[i].x, p[i].y, r, r, TRUE);
+    SetWindowPos(p[i].hwnd, NULL, p[i].x, p[i].y, 0, 0,
+        SWP_NOSIZE|SWP_NOZORDER|SWP_NOOWNERZORDER);
   }
 }
 
@@ -73,6 +67,7 @@ WinMain(HINSTANCE hinst, HINSTANCE hinstPrev, LPSTR lpszCmdLine, int nCmdShow) {
   HWND hwnd;
   int w = 0, h = 0;
   wchar_t *pos;
+  HRGN hrgn;
 
   srand((unsigned)time(NULL));
 
@@ -127,7 +122,7 @@ WinMain(HINSTANCE hinst, HINSTANCE hinstPrev, LPSTR lpszCmdLine, int nCmdShow) {
   for (i = 0; i < sizeof(p)/sizeof(p[0]); i++) {
     p[i].hwnd = CreateWindowEx(WS_EX_TOPMOST | WS_EX_TOOLWINDOW | WS_EX_LAYERED | WS_EX_NOACTIVATE,
         app, app, WS_POPUP, CW_USEDEFAULT, CW_USEDEFAULT,
-        0, 0, NULL, NULL, hinst, NULL);
+        10, 10, NULL, NULL, hinst, NULL);
     if (p[i].hwnd == NULL) goto leave;
     SetLayeredWindowAttributes(p[i].hwnd, RGB(0xFF, 0xFF, 0xFF), 70, LWA_ALPHA);
 
@@ -135,8 +130,10 @@ WinMain(HINSTANCE hinst, HINSTANCE hinstPrev, LPSTR lpszCmdLine, int nCmdShow) {
     p[i].y = pt.y;
     p[i].dx = (rand() % 10) - 5;
     p[i].dy = -10 - (rand() % 10);
-    p[i].r = -20;
 
+    hrgn = CreateEllipticRgn(0, 0, 10, 10);
+    if (hrgn != NULL)
+      SetWindowRgn(p[i].hwnd, hrgn, TRUE);
     ShowWindow(p[i].hwnd, nCmdShow);
     UpdateWindow(p[i].hwnd);
   }
