@@ -37,7 +37,7 @@ WindowProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam) {
 
 void CALLBACK
 UpdateProc(HWND hwnd, UINT uMsg, UINT_PTR idEvent, DWORD dwTime) {
-  int i, r;
+  int i;
   for (i = 0; i < sizeof(p)/sizeof(p[0]); i++) {
     p[i].x += p[i].dx;
     p[i].y += p[i].dy;
@@ -61,7 +61,6 @@ WinMain(HINSTANCE hinst, HINSTANCE hinstPrev, LPSTR lpszCmdLine, int nCmdShow) {
   int argc;
   LPWSTR *argv;
   int r = 0xff, g = 0xff, b = 0xff;
-  GUITHREADINFO ti = {0};
   RECT rc = {0};
   POINT pt = {500, 500};
   HWND hwnd;
