@@ -104,9 +104,9 @@ WinMain(HINSTANCE hinst, HINSTANCE hinstPrev, LPSTR lpszCmdLine, int nCmdShow) {
   if (argc >= 3) {
     swscanf(argv[2], L"%02x%02x%02x", &r, &g, &b);
   } else {
-    r = rand() % 255;
-    g = rand() % 255;
-    b = rand() % 255;
+    r = rand() % 256;
+    g = rand() % 256;
+    b = rand() % 256;
   }
 
   wc.cbSize        = sizeof(WNDCLASSEX);
