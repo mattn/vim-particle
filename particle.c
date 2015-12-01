@@ -15,8 +15,8 @@ static HBRUSH hb = NULL;
 
 LRESULT CALLBACK
 WindowProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam) {
-  HDC hdc;
-  RECT rc;
+  HDC hdc = NULL;
+  RECT rc = {0};
   PAINTSTRUCT ps;
 
   switch (uMsg) {
@@ -62,10 +62,10 @@ WinMain(HINSTANCE hinst, HINSTANCE hinstPrev, LPSTR lpszCmdLine, int nCmdShow) {
   LPWSTR *argv;
   int r = 0xff, g = 0xff, b = 0xff;
   RECT rc = {0};
-  POINT pt = {500, 500};
+  POINT pt = {200, 200};
   HWND hwnd;
   int w = 0, h = 0;
-  wchar_t *pos;
+  wchar_t *pos = NULL;
   HRGN hrgn;
 
   srand((unsigned)time(NULL));
@@ -75,23 +75,20 @@ WinMain(HINSTANCE hinst, HINSTANCE hinstPrev, LPSTR lpszCmdLine, int nCmdShow) {
   if (argc >= 2) {
     pos = wcschr(argv[1], ',');
     if (pos) *pos++ = 0;
-
     hwnd = (HWND) _wtoi64(argv[1]);
-    if (hwnd == NULL) hwnd = GetForegroundWindow();
+  }
+  if (hwnd == NULL) hwnd = GetForegroundWindow();
 
-    if (swscanf(pos, L"%d,%d,%d,%d", &pt.x, &pt.y, &w, &h) == 4) {
-      GetWindowRect(hwnd, &rc);
-      pt.x = (rc.right - rc.left) / w * pt.x;
-      pt.y = (rc.bottom - rc.top) / h * pt.y;
+  if (pos && swscanf(pos, L"%d,%d,%d,%d", &pt.x, &pt.y, &w, &h) == 4) {
+    GetWindowRect(hwnd, &rc);
+    pt.x = (rc.right - rc.left) / w * pt.x;
+    pt.y = (rc.bottom - rc.top) / h * pt.y;
+    ClientToScreen(hwnd, &pt);
+  } else {
+    if (GetWindowRect(hwnd, &rc)) {
+      pt.x = (rc.left + rc.right) / 2 + rand() % 200 - 100;
+      pt.y = (rc.top + rc.bottom) / 2 + rand() % 200 - 100;
       ClientToScreen(hwnd, &pt);
-    } else {
-      if (hwnd != NULL) {
-        GetWindowRect(hwnd, &rc);
-        pt.x = (rc.left + rc.right) / 2 + rand() % 200 - 100;
-        pt.y = (rc.top + rc.bottom) / 2 + rand() % 200 - 100;
-      } else {
-        GetCursorPos(&pt);
-      }
     }
   }
 
