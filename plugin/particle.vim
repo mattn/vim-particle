@@ -19,8 +19,8 @@ let s:ctb = [
 let [s:oldx, s:oldy] = [0, 0]
 function! s:particle()
   let [x, y] = [getwinposx(), getwinposy()]
-  let x += s:rand() % 10 - 5
-  let y += s:rand() % 10 - 5
+  let x += (abs(s:rand()) % 11 - 5)
+  let y += (abs(s:rand()) % 11 - 5)
   exe 'winpos' x y
   let c = synIDattr(synIDtrans(synID(line("."), col(".")-1, 1)), "fg")
   if c =~ '^#'
@@ -35,7 +35,8 @@ function! s:particle()
   if x == 10000 || y == 10000
     let [x, y] = [s:oldx, s:oldy]
   endif
-  silent exe "!start" printf("%s %d,%d,%d,%d,%d %s", s:exe, v:windowid, x, y, &columns, &lines, c)
+  "silent exe "!start" printf("%s %d,%d,%d,%d,%d %s", s:exe, v:windowid, x, y, &columns, &lines, c)
+  let s:job = job_start(['cmd', '/c', printf("start %s %d,%d,%d,%d,%d %s", s:exe, v:windowid, x, y, &columns, &lines, c)])
   let [s:oldx, s:oldy] = [x, y]
 endfunction
 
