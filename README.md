@@ -5,7 +5,15 @@
 ## Usage
 
 ```vim
-:ParticleOn
+:ParticleOn       " Syntax color particles
+:ParticleRainbow  " Pastel rainbow particles
+:ParticleOff      " Stop
+```
+
+### Options
+
+```vim
+let g:particle_count = 3  " Number of particles per keystroke (1-10, default: 3)
 ```
 
 ## Requirements

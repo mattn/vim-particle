@@ -16,38 +16,70 @@ let s:ctb = [
 \ '000000', 'aa0000', '00aa00', '0000aa', 'aa5500', 'aa00aa', '00aaaa', 'aaaaaa',
 \ '555555', 'ff5555', '55ff55', 'ffff55', '5555ff', 'ff55ff', '55ffff', 'ffffff'
 \]
+let s:rainbow = [
+\ 'ffb3b3', 'ffd9b3', 'ffffb3', 'b3ffb3', 'b3ffff', 'b3b3ff', 'ffb3ff'
+\]
+let s:rainbow_idx = 0
 let [s:oldx, s:oldy] = [0, 0]
+let s:job = v:null
+let s:mode = ''
+
+function! s:ensure_running() abort
+  if s:job is v:null || job_status(s:job) != 'run'
+    let n = get(g:, 'particle_count', 3)
+    let s:job = job_start([s:exe, '-w', string(v:windowid), '-n', string(n)], {'mode': 'raw'})
+  endif
+endfunction
+
+function! s:get_color() abort
+  if s:mode == 'rainbow'
+    let c = s:rainbow[s:rainbow_idx]
+    let s:rainbow_idx = (s:rainbow_idx + 1) % len(s:rainbow)
+    return [c, 140]
+  endif
+  let c = synIDattr(synIDtrans(synID(line("."), col(".")-1, 1)), "fg")
+  if c =~ '^#'
+    return [c[1:], 70]
+  elseif c =~ '^[0-9]\+$'
+    return [s:ctb[c], 70]
+  endif
+  return ['ffffff', 70]
+endfunction
+
 function! s:particle()
+  call s:ensure_running()
   let [x, y] = [getwinposx(), getwinposy()]
   let x += (abs(s:rand()) % 11 - 5)
   let y += (abs(s:rand()) % 11 - 5)
   exe 'winpos' x y
-  let c = synIDattr(synIDtrans(synID(line("."), col(".")-1, 1)), "fg")
-  if c =~ '^#'
-    let c = c[1:]
-  elseif c =~ '^[0-9]\+$'
-    let c = s:ctb[c]
-  else
-    let c = 'ffffff'
-  endif
+  let [c, a] = s:get_color()
 
   let [x, y] = [screencol(), screenrow()]
   if x == 10000 || y == 10000
     let [x, y] = [s:oldx, s:oldy]
   endif
-  "silent exe "!start" printf("%s %d,%d,%d,%d,%d %s", s:exe, v:windowid, x, y, &columns, &lines, c)
-  let s:job = job_start(['cmd', '/c', printf("start %s %d,%d,%d,%d,%d %s", s:exe, v:windowid, x, y, &columns, &lines, c)])
+  call ch_sendraw(job_getchannel(s:job), printf("%d,%d,%d,%d %s %d\n", x, y, &columns, &lines, c, a))
   let [s:oldx, s:oldy] = [x, y]
 endfunction
 
-function! s:install(flag)
+function! s:install(mode)
   augroup ParticleVim
     au!
-    if a:flag
+    if a:mode != ''
+      let s:mode = a:mode
+      let s:rainbow_idx = 0
+      call s:ensure_running()
       au TextChangedI * call s:particle()
+    else
+      let s:mode = ''
+      if s:job isnot v:null && job_status(s:job) == 'run'
+        call job_stop(s:job)
+      endif
+      let s:job = v:null
     endif
   augroup END
 endfunction
 
-command! -nargs=0 ParticleOn call <SID>install(1)
-command! -nargs=0 ParticleOff call <SID>install(0)
+command! -nargs=0 ParticleOn call <SID>install('syntax')
+command! -nargs=0 ParticleRainbow call <SID>install('rainbow')
+command! -nargs=0 ParticleOff call <SID>install('')
