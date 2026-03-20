@@ -27,12 +27,16 @@ let s:mode = ''
 function! s:ensure_running() abort
   if s:job is v:null || job_status(s:job) != 'run'
     let n = get(g:, 'particle_count', 3)
-    let s:job = job_start([s:exe, '-w', string(v:windowid), '-n', string(n)], {'mode': 'raw'})
+    let cmd = [s:exe, '-w', string(v:windowid), '-n', string(n)]
+    if s:mode == 'star'
+      let cmd += ['-star']
+    endif
+    let s:job = job_start(cmd, {'mode': 'raw'})
   endif
 endfunction
 
 function! s:get_color() abort
-  if s:mode == 'rainbow'
+  if s:mode == 'rainbow' || s:mode == 'star'
     let c = s:rainbow[s:rainbow_idx]
     let s:rainbow_idx = (s:rainbow_idx + 1) % len(s:rainbow)
     return [c, 140]
@@ -66,6 +70,10 @@ function! s:install(mode)
   augroup ParticleVim
     au!
     if a:mode != ''
+      if s:job isnot v:null && job_status(s:job) == 'run'
+        call job_stop(s:job)
+        let s:job = v:null
+      endif
       let s:mode = a:mode
       let s:rainbow_idx = 0
       call s:ensure_running()
@@ -82,4 +90,5 @@ endfunction
 
 command! -nargs=0 ParticleOn call <SID>install('syntax')
 command! -nargs=0 ParticleRainbow call <SID>install('rainbow')
+command! -nargs=0 ParticleStar call <SID>install('star')
 command! -nargs=0 ParticleOff call <SID>install('')

@@ -3,6 +3,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <time.h>
+#include <math.h>
 #include <process.h>
 
 #define MAX_GROUPS 64
@@ -10,6 +11,7 @@
 #define MAX_PER_GROUP 10
 #define WM_SPAWN (WM_USER + 1)
 #define PARTICLE_SIZE 10
+#define STAR_SIZE 30
 
 typedef struct {
   HWND hwnd;
@@ -36,6 +38,7 @@ static DWORD g_mainThread;
 static TCHAR g_class[] = TEXT("particle");
 static UINT_PTR g_timer;
 static int g_active_count;
+static int g_star;
 
 static void
 CreateParticleBitmap(pgroup *g, BYTE r, BYTE b, BYTE gb, BYTE alpha) {
@@ -78,10 +81,66 @@ CreateParticleBitmap(pgroup *g, BYTE r, BYTE b, BYTE gb, BYTE alpha) {
 }
 
 static void
+CreateStarBitmap(pgroup *g, BYTE r, BYTE gb, BYTE b, BYTE alpha) {
+  BITMAPINFO bmi = {0};
+  HDC hdcScreen;
+  DWORD *bits;
+  int cx, cy, i;
+  int w = STAR_SIZE, h = STAR_SIZE;
+  float center = w / 2.0f;
+  float outer_r = center * 0.95f;
+  float inner_r = outer_r * 0.38f;
+  float vx[10], vy[10];
+
+  for (i = 0; i < 5; i++) {
+    float ao = -3.14159265f/2.0f + i * 2*3.14159265f/5.0f;
+    float ai = -3.14159265f/2.0f + (i + 0.5f) * 2*3.14159265f/5.0f;
+    vx[i*2]   = center + outer_r * cosf(ao);
+    vy[i*2]   = center + outer_r * sinf(ao);
+    vx[i*2+1] = center + inner_r * cosf(ai);
+    vy[i*2+1] = center + inner_r * sinf(ai);
+  }
+
+  bmi.bmiHeader.biSize = sizeof(BITMAPINFOHEADER);
+  bmi.bmiHeader.biWidth = w;
+  bmi.bmiHeader.biHeight = -h;
+  bmi.bmiHeader.biPlanes = 1;
+  bmi.bmiHeader.biBitCount = 32;
+  bmi.bmiHeader.biCompression = BI_RGB;
+
+  hdcScreen = GetDC(NULL);
+  g->hdcMem = CreateCompatibleDC(hdcScreen);
+  g->hbmp = CreateDIBSection(g->hdcMem, &bmi, DIB_RGB_COLORS, (void**)&bits, NULL, 0);
+  SelectObject(g->hdcMem, g->hbmp);
+  ReleaseDC(NULL, hdcScreen);
+
+  for (cy = 0; cy < h; cy++) {
+    for (cx = 0; cx < w; cx++) {
+      float px = cx + 0.5f, py = cy + 0.5f;
+      int inside = 0, j = 9;
+      for (i = 0; i < 10; i++) {
+        if ((vy[i] > py) != (vy[j] > py) &&
+            px < (vx[j]-vx[i]) * (py-vy[i]) / (vy[j]-vy[i]) + vx[i])
+          inside = !inside;
+        j = i;
+      }
+      if (inside) {
+        BYTE a = alpha;
+        bits[cy * w + cx] = ((DWORD)a << 24)
+          | ((DWORD)(r * a / 255) << 16)
+          | ((DWORD)(gb * a / 255) << 8)
+          | ((DWORD)(b * a / 255));
+      }
+    }
+  }
+}
+
+static void
 ApplyLayered(HWND hwnd, int x, int y, HDC hdcMem) {
   HDC hdcScreen;
   POINT ptPos, ptSrc = {0, 0};
-  SIZE sz = {PARTICLE_SIZE, PARTICLE_SIZE};
+  int psz = g_star ? STAR_SIZE : PARTICLE_SIZE;
+  SIZE sz = {psz, psz};
   BLENDFUNCTION blend = {AC_SRC_OVER, 0, 255, AC_SRC_ALPHA};
 
   ptPos.x = x;
@@ -113,7 +172,7 @@ UpdateProc(HWND hwnd, UINT uMsg, UINT_PTR idEvent, DWORD dwTime) {
       if (groups[i].p[j].hwnd == NULL) continue;
       groups[i].p[j].x += groups[i].p[j].dx;
       groups[i].p[j].y += groups[i].p[j].dy;
-      groups[i].p[j].dy += 2;
+      groups[i].p[j].dy += g_star ? 1 : 2;
       if (groups[i].p[j].dy >= 30) {
         DestroyWindow(groups[i].p[j].hwnd);
         groups[i].p[j].hwnd = NULL;
@@ -161,22 +220,33 @@ SpawnGroup(spawn_params *sp) {
     }
   }
 
-  CreateParticleBitmap(&groups[gi], sp->r, sp->g, sp->b, sp->a);
+  if (g_star)
+    CreateStarBitmap(&groups[gi], sp->r, sp->g, sp->b, sp->a);
+  else
+    CreateParticleBitmap(&groups[gi], sp->r, sp->g, sp->b, sp->a);
   groups[gi].active = 1;
   g_active_count++;
 
-  for (i = 0; i < g_per_group; i++) {
-    groups[gi].p[i].hwnd = CreateWindowEx(
-        WS_EX_TOPMOST | WS_EX_TOOLWINDOW | WS_EX_LAYERED | WS_EX_NOACTIVATE,
-        g_class, g_class, WS_POPUP, pt.x, pt.y,
-        PARTICLE_SIZE, PARTICLE_SIZE,
-        NULL, NULL, g_hinst, NULL);
-    groups[gi].p[i].x = pt.x;
-    groups[gi].p[i].y = pt.y;
-    groups[gi].p[i].dx = (rand() % 10) - 5;
-    groups[gi].p[i].dy = -10 - (rand() % 10);
-    ApplyLayered(groups[gi].p[i].hwnd, pt.x, pt.y, groups[gi].hdcMem);
-    ShowWindow(groups[gi].p[i].hwnd, SW_SHOWNOACTIVATE);
+  {
+    int psz = g_star ? STAR_SIZE : PARTICLE_SIZE;
+    for (i = 0; i < g_per_group; i++) {
+      groups[gi].p[i].hwnd = CreateWindowEx(
+          WS_EX_TOPMOST | WS_EX_TOOLWINDOW | WS_EX_LAYERED | WS_EX_NOACTIVATE,
+          g_class, g_class, WS_POPUP, pt.x, pt.y,
+          psz, psz,
+          NULL, NULL, g_hinst, NULL);
+      groups[gi].p[i].x = pt.x;
+      groups[gi].p[i].y = pt.y;
+      if (g_star) {
+        groups[gi].p[i].dx = (rand() % 10) - 5;
+        groups[gi].p[i].dy = -10 - (rand() % 10);
+      } else {
+        groups[gi].p[i].dx = (rand() % 10) - 5;
+        groups[gi].p[i].dy = -10 - (rand() % 10);
+      }
+      ApplyLayered(groups[gi].p[i].hwnd, pt.x, pt.y, groups[gi].hdcMem);
+      ShowWindow(groups[gi].p[i].hwnd, SW_SHOWNOACTIVATE);
+    }
   }
 
   if (!g_timer)
@@ -223,13 +293,15 @@ main(int argc, char *argv[]) {
 
   {
     int i;
-    for (i = 1; i < argc - 1; i++) {
-      if (strcmp(argv[i], "-n") == 0) {
+    for (i = 1; i < argc; i++) {
+      if (strcmp(argv[i], "-n") == 0 && i + 1 < argc) {
         int n = atoi(argv[++i]);
         if (n >= 1 && n <= MAX_PER_GROUP)
           g_per_group = n;
-      } else if (strcmp(argv[i], "-w") == 0) {
+      } else if (strcmp(argv[i], "-w") == 0 && i + 1 < argc) {
         g_target = (HWND)(intptr_t)atoll(argv[++i]);
+      } else if (strcmp(argv[i], "-star") == 0) {
+        g_star = 1;
       }
     }
   }
