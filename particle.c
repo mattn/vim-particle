@@ -12,6 +12,7 @@
 #define WM_SPAWN (WM_USER + 1)
 #define PARTICLE_SIZE 10
 #define STAR_SIZE 30
+#define POOP_SIZE 30
 
 typedef struct {
   HWND hwnd;
@@ -38,7 +39,7 @@ static DWORD g_mainThread;
 static TCHAR g_class[] = TEXT("particle");
 static UINT_PTR g_timer;
 static int g_active_count;
-static int g_star;
+static int g_mode; /* 0=normal, 1=star, 2=poop */
 
 static void
 CreateParticleBitmap(pgroup *g, BYTE r, BYTE b, BYTE gb, BYTE alpha) {
@@ -136,10 +137,66 @@ CreateStarBitmap(pgroup *g, BYTE r, BYTE gb, BYTE b, BYTE alpha) {
 }
 
 static void
+CreatePoopBitmap(pgroup *g, BYTE r, BYTE gb, BYTE b, BYTE alpha) {
+  BITMAPINFO bmi = {0};
+  HDC hdcScreen;
+  DWORD *bits;
+  int cx, cy;
+  int w = POOP_SIZE, h = POOP_SIZE;
+
+  bmi.bmiHeader.biSize = sizeof(BITMAPINFOHEADER);
+  bmi.bmiHeader.biWidth = w;
+  bmi.bmiHeader.biHeight = -h;
+  bmi.bmiHeader.biPlanes = 1;
+  bmi.bmiHeader.biBitCount = 32;
+  bmi.bmiHeader.biCompression = BI_RGB;
+
+  hdcScreen = GetDC(NULL);
+  g->hdcMem = CreateCompatibleDC(hdcScreen);
+  g->hbmp = CreateDIBSection(g->hdcMem, &bmi, DIB_RGB_COLORS, (void**)&bits, NULL, 0);
+  SelectObject(g->hdcMem, g->hbmp);
+  ReleaseDC(NULL, hdcScreen);
+
+  for (cy = 0; cy < h; cy++) {
+    for (cx = 0; cx < w; cx++) {
+      float px = (cx + 0.5f) / w, py = (cy + 0.5f) / h;
+      float dx, dy;
+      int inside = 0;
+      /* bottom */
+      dx = (px - 0.50f) / 0.42f; dy = (py - 0.82f) / 0.18f;
+      if (dx*dx + dy*dy <= 1.0f) inside = 1;
+      /* middle */
+      dx = (px - 0.50f) / 0.33f; dy = (py - 0.60f) / 0.20f;
+      if (dx*dx + dy*dy <= 1.0f) inside = 1;
+      /* top */
+      dx = (px - 0.50f) / 0.23f; dy = (py - 0.40f) / 0.18f;
+      if (dx*dx + dy*dy <= 1.0f) inside = 1;
+      /* tip */
+      dx = (px - 0.55f) / 0.12f; dy = (py - 0.23f) / 0.12f;
+      if (dx*dx + dy*dy <= 1.0f) inside = 1;
+      if (inside) {
+        BYTE a = alpha;
+        bits[cy * w + cx] = ((DWORD)a << 24)
+          | ((DWORD)(r * a / 255) << 16)
+          | ((DWORD)(gb * a / 255) << 8)
+          | ((DWORD)(b * a / 255));
+      }
+    }
+  }
+}
+
+static int
+particle_size(void) {
+  if (g_mode == 1) return STAR_SIZE;
+  if (g_mode == 2) return POOP_SIZE;
+  return PARTICLE_SIZE;
+}
+
+static void
 ApplyLayered(HWND hwnd, int x, int y, HDC hdcMem) {
   HDC hdcScreen;
   POINT ptPos, ptSrc = {0, 0};
-  int psz = g_star ? STAR_SIZE : PARTICLE_SIZE;
+  int psz = particle_size();
   SIZE sz = {psz, psz};
   BLENDFUNCTION blend = {AC_SRC_OVER, 0, 255, AC_SRC_ALPHA};
 
@@ -172,7 +229,7 @@ UpdateProc(HWND hwnd, UINT uMsg, UINT_PTR idEvent, DWORD dwTime) {
       if (groups[i].p[j].hwnd == NULL) continue;
       groups[i].p[j].x += groups[i].p[j].dx;
       groups[i].p[j].y += groups[i].p[j].dy;
-      groups[i].p[j].dy += g_star ? 1 : 2;
+      groups[i].p[j].dy += g_mode == 1 ? 1 : 2;
       if (groups[i].p[j].dy >= 30) {
         DestroyWindow(groups[i].p[j].hwnd);
         groups[i].p[j].hwnd = NULL;
@@ -220,15 +277,17 @@ SpawnGroup(spawn_params *sp) {
     }
   }
 
-  if (g_star)
+  if (g_mode == 1)
     CreateStarBitmap(&groups[gi], sp->r, sp->g, sp->b, sp->a);
+  else if (g_mode == 2)
+    CreatePoopBitmap(&groups[gi], sp->r, sp->g, sp->b, sp->a);
   else
     CreateParticleBitmap(&groups[gi], sp->r, sp->g, sp->b, sp->a);
   groups[gi].active = 1;
   g_active_count++;
 
   {
-    int psz = g_star ? STAR_SIZE : PARTICLE_SIZE;
+    int psz = particle_size();
     for (i = 0; i < g_per_group; i++) {
       groups[gi].p[i].hwnd = CreateWindowEx(
           WS_EX_TOPMOST | WS_EX_TOOLWINDOW | WS_EX_LAYERED | WS_EX_NOACTIVATE,
@@ -237,13 +296,8 @@ SpawnGroup(spawn_params *sp) {
           NULL, NULL, g_hinst, NULL);
       groups[gi].p[i].x = pt.x;
       groups[gi].p[i].y = pt.y;
-      if (g_star) {
-        groups[gi].p[i].dx = (rand() % 10) - 5;
-        groups[gi].p[i].dy = -10 - (rand() % 10);
-      } else {
-        groups[gi].p[i].dx = (rand() % 10) - 5;
-        groups[gi].p[i].dy = -10 - (rand() % 10);
-      }
+      groups[gi].p[i].dx = (rand() % 10) - 5;
+      groups[gi].p[i].dy = -10 - (rand() % 10);
       ApplyLayered(groups[gi].p[i].hwnd, pt.x, pt.y, groups[gi].hdcMem);
       ShowWindow(groups[gi].p[i].hwnd, SW_SHOWNOACTIVATE);
     }
@@ -300,8 +354,10 @@ main(int argc, char *argv[]) {
           g_per_group = n;
       } else if (strcmp(argv[i], "-w") == 0 && i + 1 < argc) {
         g_target = (HWND)(intptr_t)atoll(argv[++i]);
-      } else if (strcmp(argv[i], "-star") == 0) {
-        g_star = 1;
+      } else if (strcmp(argv[i], "-mode") == 0 && i + 1 < argc) {
+        i++;
+        if (strcmp(argv[i], "star") == 0) g_mode = 1;
+        else if (strcmp(argv[i], "unko") == 0) g_mode = 2;
       }
     }
   }

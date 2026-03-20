@@ -28,8 +28,8 @@ function! s:ensure_running() abort
   if s:job is v:null || job_status(s:job) != 'run'
     let n = get(g:, 'particle_count', 3)
     let cmd = [s:exe, '-w', string(v:windowid), '-n', string(n)]
-    if s:mode == 'star'
-      let cmd += ['-star']
+    if s:mode == 'star' || s:mode == 'unko'
+      let cmd += ['-mode', s:mode]
     endif
     let s:job = job_start(cmd, {'mode': 'raw'})
   endif
@@ -40,6 +40,9 @@ function! s:get_color() abort
     let c = s:rainbow[s:rainbow_idx]
     let s:rainbow_idx = (s:rainbow_idx + 1) % len(s:rainbow)
     return [c, 140]
+  endif
+  if s:mode == 'unko'
+    return ['6B4226', 200]
   endif
   let c = synIDattr(synIDtrans(synID(line("."), col(".")-1, 1)), "fg")
   if c =~ '^#'
@@ -91,4 +94,11 @@ endfunction
 command! -nargs=0 ParticleOn call <SID>install('syntax')
 command! -nargs=0 ParticleRainbow call <SID>install('rainbow')
 command! -nargs=0 ParticleStar call <SID>install('star')
+command! -nargs=0 ParticleUnko call <SID>install('unko')
 command! -nargs=0 ParticleOff call <SID>install('')
+
+let s:autostart_modes = {'syntax': 1, 'rainbow': 1, 'star': 1, 'unko': 1}
+let s:autostart = get(g:, 'particle_autostart', '')
+if has_key(s:autostart_modes, s:autostart)
+  call s:install(s:autostart)
+endif
