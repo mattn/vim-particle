@@ -23,12 +23,13 @@ let g:particle_count = 3  " Number of particles per keystroke (1-10, default: 3)
 
 ## Requirements
 
-Windows!
+* Windows or Linux (X11)
+* Linux requires a compositor (picom, compton, etc.) for transparency
 
 ## Installation
 
 ```
-mingw32-make
+make
 ```
 
 ## License

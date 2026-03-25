@@ -1,4 +1,8 @@
-let s:exe = fnamemodify(expand('<sfile>:h:h') . '\particle.exe', ':p')
+if has('win32')
+  let s:exe = fnamemodify(expand('<sfile>:h:h') . '\particle.exe', ':p')
+else
+  let s:exe = fnamemodify(expand('<sfile>:h:h') . '/particle', ':p')
+endif
 
 let s:seed = 0
 function! s:srand(seed) abort

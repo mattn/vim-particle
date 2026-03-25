@@ -1,7 +1,21 @@
-all : particle.exe
+UNAME := $(shell uname -s)
 
-particle.exe : particle.c
-	gcc -Wall -Werror -o particle.exe -mwindows particle.c -lgdi32 -lmsimg32
+ifeq ($(UNAME),Linux)
+TARGET = particle
+SRCS   = particle_linux.c
+CFLAGS = -Wall -Werror
+LIBS   = -lX11 -lXrender -lm -lpthread
+else
+TARGET = particle.exe
+SRCS   = particle_windows.c
+CFLAGS = -Wall -Werror -mwindows
+LIBS   = -lgdi32 -lmsimg32
+endif
+
+all : $(TARGET)
+
+$(TARGET) : $(SRCS)
+	gcc $(CFLAGS) -o $(TARGET) $(SRCS) $(LIBS)
 
 clean :
-	rm -f particle.exe
+	rm -f particle particle.exe
