@@ -32,6 +32,9 @@ let g:particle_count = 3  " Number of particles per keystroke (1-10, default: 3)
 make
 ```
 
+Pre-built binaries are available on the [Releases](../../releases) page.
+Rename to `particle.exe` (Windows) or `particle` (Linux) and place in the plugin directory.
+
 ## License
 
 MIT
