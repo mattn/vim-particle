@@ -59,6 +59,9 @@ endfunction
 
 function! s:particle()
   call s:ensure_running()
+  if has('sound') && get(g:, 'particle_sound', '') != ''
+    call sound_playfile(g:particle_sound)
+  endif
   let [x, y] = [getwinposx(), getwinposy()]
   let x += (abs(s:rand()) % 11 - 5)
   let y += (abs(s:rand()) % 11 - 5)
